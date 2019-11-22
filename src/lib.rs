@@ -1,5 +1,5 @@
 use failure::Error;
-use image::{DynamicImage, FilterType, RgbaImage};
+use image::{imageops::resize, FilterType, RgbaImage};
 use tui::buffer::Buffer;
 use tui::layout::{Alignment, Rect};
 use tui::style::{Color, Style};
@@ -23,7 +23,7 @@ pub struct Image<'a> {
 	/// Image to display
 	img: Option<RgbaImage>,
 	/// Function returning image to display
-	img_fn: Option<Box<dyn Fn(f32, f32, f32) -> Result<RgbaImage, Error>>>,
+	img_fn: Option<Box<dyn Fn(usize, usize) -> Result<RgbaImage, Error>>>,
 	/// Color mode
 	color_mode: ColorMode,
 	/// Alignment of the image
@@ -43,7 +43,7 @@ impl<'a> Image<'a> {
 	}
 
 	pub fn with_img_fn(
-		img_fn: impl Fn(f32, f32, f32) -> Result<RgbaImage, Error> + 'static,
+		img_fn: impl Fn(usize, usize) -> Result<RgbaImage, Error> + 'static,
 	) -> Image<'a> {
 		Image {
 			block: None,
@@ -74,35 +74,8 @@ impl<'a> Image<'a> {
 		self.alignment = alignment;
 		self
 	}
-}
 
-impl<'a> Widget for Image<'a> {
-	fn draw(&mut self, area: Rect, buf: &mut Buffer) {
-		let area = match self.block {
-			Some(ref mut b) => {
-				b.draw(area, buf);
-				b.inner(area)
-			}
-			None => area,
-		};
-
-		if area.height < 1 {
-			return;
-		}
-
-		self.background(area, buf, self.style.bg);
-
-		let img = match self.img {
-			Some(ref img) => DynamicImage::ImageRgba8(img.clone()),
-			None => match self.img_fn {
-				Some(ref img_fn) => match img_fn(area.width as f32, area.height as f32, 2.0) {
-					Ok(img) => DynamicImage::ImageRgba8(img.clone()),
-					Err(_) => return,
-				},
-				None => return,
-			},
-		};
-
+	fn draw_img(&self, area: Rect, buf: &mut Buffer, img: &RgbaImage) {
 		// TODO: add other fixed colours
 		let bg_rgb = match self.style.bg {
 			Color::Black => vec![0f32, 0f32, 0f32],
@@ -111,17 +84,6 @@ impl<'a> Widget for Image<'a> {
 			_ => vec![0f32, 0f32, 0f32],
 		};
 
-		// resample to half vertical resolution
-
-		let (orig_w, orig_h) = {
-			let rgba = img.as_rgba8().unwrap();
-			(rgba.width(), rgba.height())
-		};
-
-		let img = img
-			.resize_exact(orig_w, orig_h / 2, FilterType::Lanczos3)
-			.to_rgba();
-
 		// calc offset
 
 		let ox = match self.alignment {
@@ -129,13 +91,13 @@ impl<'a> Widget for Image<'a> {
 			Alignment::Left => 0,
 			Alignment::Right => area.width - img.width() as u16,
 		};
-		let oy = (area.height - img.height() as u16) / 2;
+		let oy = (area.height - (img.height() / 2) as u16) / 2;
 
 		// draw
 
-		for y in oy..(oy + img.height() as u16) {
+		for y in oy..(oy + (img.height() / 2) as u16) {
 			for x in ox..(ox + img.width() as u16) {
-				let p = img.get_pixel((x - ox) as u32, (y - oy) as u32);
+				let p = img.get_pixel((x - ox) as u32, 2 * (y - oy) as u32);
 
 				// composite onto background
 				let a = p.data[3] as f32 / 255.0;
@@ -168,6 +130,37 @@ impl<'a> Widget for Image<'a> {
 						));
 					}
 				}
+			}
+		}
+	}
+}
+
+impl<'a> Widget for Image<'a> {
+	fn draw(&mut self, area: Rect, buf: &mut Buffer) {
+		let area = match self.block {
+			Some(ref mut b) => {
+				b.draw(area, buf);
+				b.inner(area)
+			}
+			None => area,
+		};
+
+		if area.width < 1 || area.height < 1 {
+			return;
+		}
+
+		self.background(area, buf, self.style.bg);
+
+		if let Some(ref img) = self.img {
+			if img.width() > area.width as u32 || img.height() / 2 > area.height as u32 {
+				let scaled = resize(img, 2 * area.width as u32, 2 * area.height as u32, FilterType::Nearest);
+				self.draw_img(area, buf, &scaled)
+			} else {
+				self.draw_img(area, buf, img)
+			}
+		} else if let Some(ref img_fn) = self.img_fn {
+			if let Ok(img) = img_fn(2 * area.width as usize, 2 * area.height as usize) {
+				self.draw_img(area, buf, &img);
 			}
 		}
 	}
