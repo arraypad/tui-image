@@ -1,5 +1,6 @@
 use failure::Error;
 use image::{imageops::resize, FilterType, RgbaImage};
+use std::cmp::{min, max};
 use tui::buffer::Buffer;
 use tui::layout::{Alignment, Rect};
 use tui::style::{Color, Style};
@@ -93,17 +94,17 @@ impl<'a> Image<'a> {
 
         // calc offset
 
-        let ox = match self.alignment {
-            Alignment::Center => (area.width - img.width() as u16) / 2,
-            Alignment::Left => 0,
-            Alignment::Right => area.width - img.width() as u16,
-        };
-        let oy = (area.height - (img.height() / 2) as u16) / 2;
+        let ox = max(0, min(area.width as i32 - 1, match self.alignment {
+            Alignment::Center => (area.width as i32 - img.width() as i32) / 2i32,
+            Alignment::Left => 0i32,
+            Alignment::Right => area.width as i32 - img.width() as i32,
+        })) as u16;
+        let oy = max(0, min(area.height - 1, (area.height - (img.height() / 2) as u16) / 2)) as u16;
 
         // draw
 
-        for y in oy..(oy + (img.height() / 2) as u16) {
-            for x in ox..(ox + img.width() as u16) {
+        for y in oy..(oy + min((img.height() / 2) as u16, area.height - 1)) {
+            for x in ox..min(ox + img.width() as u16, area.width - 1) {
                 let p = img.get_pixel((x - ox) as u32, 2 * (y - oy) as u32);
 
                 // composite onto background
@@ -162,7 +163,7 @@ impl<'a> Widget for Image<'a> {
             if img.width() > area.width as u32 || img.height() / 2 > area.height as u32 {
                 let scaled = resize(
                     img,
-                    2 * area.width as u32,
+                    area.width as u32,
                     2 * area.height as u32,
                     FilterType::Nearest,
                 );
