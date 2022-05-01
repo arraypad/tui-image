@@ -1,5 +1,5 @@
 use failure::Error;
-use image::{imageops::resize, FilterType, RgbaImage};
+use image::{imageops::resize, imageops::FilterType, RgbaImage};
 use std::cmp::{min, max};
 use tui::buffer::Buffer;
 use tui::layout::{Alignment, Rect};
@@ -86,9 +86,9 @@ impl<'a> Image<'a> {
     fn draw_img(&self, area: Rect, buf: &mut Buffer, img: &RgbaImage) {
         // TODO: add other fixed colours
         let bg_rgb = match self.style.bg {
-            Color::Black => vec![0f32, 0f32, 0f32],
-            Color::White => vec![1f32, 1f32, 1f32],
-            Color::Rgb(r, g, b) => vec![r as f32 / 255f32, g as f32 / 255f32, b as f32 / 255f32],
+            Some(Color::Black) => vec![0f32, 0f32, 0f32],
+            Some(Color::White) => vec![1f32, 1f32, 1f32],
+            Some(Color::Rgb(r, g, b)) => vec![r as f32 / 255f32, g as f32 / 255f32, b as f32 / 255f32],
             _ => vec![0f32, 0f32, 0f32],
         };
 
@@ -108,10 +108,10 @@ impl<'a> Image<'a> {
                 let p = img.get_pixel((x - ox) as u32, 2 * (y - oy) as u32);
 
                 // composite onto background
-                let a = p.data[3] as f32 / 255.0;
-                let r = p.data[0] as f32 * a / 255.0 + bg_rgb[0] * (1f32 - a);
-                let g = p.data[1] as f32 * a / 255.0 + bg_rgb[1] * (1f32 - a);
-                let b = p.data[2] as f32 * a / 255.0 + bg_rgb[2] * (1f32 - a);
+                let a = p[3] as f32 / 255.0;
+                let r = p[0] as f32 * a / 255.0 + bg_rgb[0] * (1f32 - a);
+                let g = p[1] as f32 * a / 255.0 + bg_rgb[1] * (1f32 - a);
+                let b = p[2] as f32 * a / 255.0 + bg_rgb[2] * (1f32 - a);
 
                 let cell = buf.get_mut(area.left() + x, area.top() + y);
 
@@ -144,20 +144,19 @@ impl<'a> Image<'a> {
 }
 
 impl<'a> Widget for Image<'a> {
-    fn draw(&mut self, area: Rect, buf: &mut Buffer) {
-        let area = match self.block {
-            Some(ref mut b) => {
-                b.draw(area, buf);
-                b.inner(area)
-            }
-            None => area,
-        };
+	fn render(mut self, area: Rect, buf: &mut Buffer) {
+		let area = match self.block.take() {
+			Some(b) => {
+				let inner_area = b.inner(area);
+				b.render(area, buf);
+				inner_area
+			}
+			None => area,
+		};
 
         if area.width < 1 || area.height < 1 {
             return;
         }
-
-        self.background(area, buf, self.style.bg);
 
         if let Some(ref img) = self.img {
             if img.width() > area.width as u32 || img.height() / 2 > area.height as u32 {
