@@ -3,9 +3,9 @@ extern crate failure;
 
 use failure::Error;
 use termion::raw::IntoRawMode;
+use termion::screen::AlternateScreen;
 use tui::backend::TermionBackend;
 use tui::layout::Rect;
-use tui::widgets::Widget;
 use tui::Terminal;
 use tui_image::{ColorMode, Image};
 
@@ -23,24 +23,27 @@ struct UsageError;
 fn run() -> Result<(), Error> {
 	let img_path = std::env::args().nth(1).ok_or_else(|| UsageError {})?;
 
-	let img = image::open(img_path)?.to_rgba();
+	let img = image::open(img_path)?.to_rgba8();
 
 	let stdout = std::io::stdout().into_raw_mode()?;
+	let stdout = AlternateScreen::from(stdout);
 	let backend = TermionBackend::new(stdout);
 	let mut terminal = Terminal::new(backend)?;
 	terminal.hide_cursor()?;
 
-	Ok(terminal.draw(|mut f| {
+	terminal.draw(|f| {
 		let size = f.size();
 
-		Image::with_img(img).color_mode(ColorMode::Rgb).render(
-			&mut f,
+		f.render_widget(
+			Image::with_img(img).color_mode(ColorMode::Rgb),
 			Rect {
 				x: 0,
 				y: 0,
 				width: size.width,
 				height: size.height,
 			},
-		)
-	})?)
+		);
+	})?;
+
+	Ok(())
 }

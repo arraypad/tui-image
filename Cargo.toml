@@ -15,4 +15,5 @@ failure = "0.1"
 image = "0.24"
 
 [dev-dependencies]
+tui = { version = "0.18", default-features = false, features = ['termion'] }
 termion = "1.5"
