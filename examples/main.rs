@@ -1,4 +1,5 @@
-#[macro_use] extern crate failure;
+#[macro_use]
+extern crate failure;
 
 use failure::Error;
 use termion::raw::IntoRawMode;
@@ -10,7 +11,7 @@ use tui_image::{ColorMode, Image};
 
 fn main() {
 	match run() {
-		Ok(_) => {},
+		Ok(_) => {}
 		Err(e) => eprintln!("Error: {:?}", e),
 	}
 }
@@ -20,9 +21,7 @@ fn main() {
 struct UsageError;
 
 fn run() -> Result<(), Error> {
-	let img_path = std::env::args()
-		.nth(1)
-		.ok_or_else(|| UsageError {})?;
+	let img_path = std::env::args().nth(1).ok_or_else(|| UsageError {})?;
 
 	let img = image::open(img_path)?.to_rgba();
 
@@ -34,13 +33,14 @@ fn run() -> Result<(), Error> {
 	Ok(terminal.draw(|mut f| {
 		let size = f.size();
 
-		Image::with_img(img)
-			.color_mode(ColorMode::Rgb)
-			.render(&mut f, Rect {
+		Image::with_img(img).color_mode(ColorMode::Rgb).render(
+			&mut f,
+			Rect {
 				x: 0,
 				y: 0,
 				width: size.width,
 				height: size.height,
-			})
+			},
+		)
 	})?)
 }
