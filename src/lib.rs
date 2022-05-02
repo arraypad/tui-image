@@ -171,7 +171,7 @@ impl<'a> Widget for Image<'a> {
                 self.draw_img(area, buf, img)
             }
         } else if let Some(ref img_fn) = self.img_fn {
-            if let Ok(img) = img_fn(2 * area.width as usize, 2 * area.height as usize) {
+            if let Ok(img) = img_fn(area.width as usize, 2 * area.height as usize) {
                 self.draw_img(area, buf, &img);
             }
         }
