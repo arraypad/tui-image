@@ -19,3 +19,7 @@ At the moment it only accepts RGBA images and will halve the vertical resolution
 * `color_mode`: `ColorMode::Luma` or `ColorMode::Rgb`
 * `alignment`: The horizontal alignment of the image within the container
 * `style`: The Style used to composite the image against the background
+
+## [![Repography logo](https://images.repography.com/logo.svg)](https://repography.com) / Recent activity [![Time period](https://images.repography.com/20739240/arraypad/tui-image/recent-activity/7237b4c2baf42b58e8d224f78293d89a_badge.svg)](https://repography.com)
+[![Pull request status graph](https://images.repography.com/20739240/arraypad/tui-image/recent-activity/7237b4c2baf42b58e8d224f78293d89a_prs.svg)](https://github.com/arraypad/tui-image/pulls)
+[![Top contributors](https://images.repography.com/20739240/arraypad/tui-image/recent-activity/7237b4c2baf42b58e8d224f78293d89a_users.svg)](https://github.com/arraypad/tui-image/graphs/contributors)
