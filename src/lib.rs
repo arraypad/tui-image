@@ -153,7 +153,7 @@ impl<'a> Image<'a> {
 							(255.0 * b) as u8,
 						));
 					}
-					ColorMode::Rgb => {
+					ColorMode::Rgba => {
 						if a == 0. {
 							cell.set_char(EMPTY);
 						} else {
