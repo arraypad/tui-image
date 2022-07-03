@@ -9,12 +9,14 @@ use tui::widgets::{Block, Widget};
 pub enum ColorMode {
 	Luma,
 	Rgb,
+	Rgba,
 }
 
 const BLOCK_LIGHT: char = '\u{2591}';
 const BLOCK_MEDIUM: char = '\u{2592}';
 const BLOCK_DARK: char = '\u{2593}';
 const BLOCK_FULL: char = '\u{2588}';
+const EMPTY: char = ' ';
 
 /// A tui-rs Widget which displays an image.
 pub struct Image<'a> {
@@ -150,6 +152,17 @@ impl<'a> Image<'a> {
 							(255.0 * g) as u8,
 							(255.0 * b) as u8,
 						));
+					}
+					ColorMode::Rgb => {
+						if a == 0. {
+							cell.set_char(EMPTY);
+						} else {
+							cell.set_char(BLOCK_FULL).set_fg(Color::Rgb(
+								(255.0 * r) as u8,
+								(255.0 * g) as u8,
+								(255.0 * b) as u8,
+							));
+						}
 					}
 				}
 			}
