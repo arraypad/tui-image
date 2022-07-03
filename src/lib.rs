@@ -15,6 +15,7 @@ const BLOCK_LIGHT: char = '\u{2591}';
 const BLOCK_MEDIUM: char = '\u{2592}';
 const BLOCK_DARK: char = '\u{2593}';
 const BLOCK_FULL: char = '\u{2588}';
+const BLOCK_UPPER_HALF: char = '\u{2580}';
 
 /// A tui-rs Widget which displays an image.
 pub struct Image<'a> {
@@ -110,16 +111,16 @@ impl<'a> Image<'a> {
 		let oy = max(
 			0,
 			min(
-				area.height - 1,
-				(area.height - (img.height() / 2) as u16) / 2,
+				(2 * area.height) - 1,
+				((2 * area.height) - img.height() as u16) / 2,
 			),
 		) as u16;
 
 		// draw
 
-		for y in oy..(oy + min((img.height() / 2) as u16, area.height - 1)) {
+		for y in oy..min(oy + img.height() as u16, (2 * area.height) - 1) {
 			for x in ox..min(ox + img.width() as u16, area.width - 1) {
-				let p = img.get_pixel((x - ox) as u32, 2 * (y - oy) as u32);
+				let p = img.get_pixel((x - ox) as u32, (y - oy) as u32);
 
 				// composite onto background
 				let a = p[3] as f32 / 255.0;
@@ -127,7 +128,7 @@ impl<'a> Image<'a> {
 				let g = p[1] as f32 * a / 255.0 + bg_rgb[1] * (1f32 - a);
 				let b = p[2] as f32 * a / 255.0 + bg_rgb[2] * (1f32 - a);
 
-				let cell = buf.get_mut(area.left() + x, area.top() + y);
+				let cell = buf.get_mut(area.left() + x, area.top() + (y / 2));
 
 				match self.color_mode {
 					ColorMode::Luma => {
@@ -145,11 +146,19 @@ impl<'a> Image<'a> {
 						});
 					}
 					ColorMode::Rgb => {
-						cell.set_char(BLOCK_FULL).set_fg(Color::Rgb(
-							(255.0 * r) as u8,
-							(255.0 * g) as u8,
-							(255.0 * b) as u8,
-						));
+						if y & 1 == 0 {
+							cell.set_char(BLOCK_UPPER_HALF).set_fg(Color::Rgb(
+								(255.0 * r) as u8,
+								(255.0 * g) as u8,
+								(255.0 * b) as u8,
+							));
+						} else {
+							cell.set_bg(Color::Rgb(
+								(255.0 * r) as u8,
+								(255.0 * g) as u8,
+								(255.0 * b) as u8,
+							));
+						}
 					}
 				}
 			}
@@ -175,7 +184,7 @@ impl<'a> Widget for Image<'a> {
 		buf.set_style(area, self.style);
 
 		if let Some(ref img) = self.img {
-			if img.width() > area.width as u32 || img.height() / 2 > area.height as u32 {
+			if img.width() > area.width as u32 || img.height() > 2 * area.height as u32 {
 				let scaled = resize(
 					img,
 					area.width as u32,
