@@ -146,7 +146,7 @@ impl<'a> Image<'a> {
 						});
 					}
 					ColorMode::Rgb => {
-						if false {
+						if y & 1 == 0 {
 							cell.set_char(BLOCK_UPPER_HALF).set_fg(Color::Rgb(
 								(255.0 * r) as u8,
 								(255.0 * g) as u8,
