@@ -6,6 +6,7 @@ use tui::layout::{Alignment, Rect};
 use tui::style::{Color, Style};
 use tui::widgets::{Block, Widget};
 
+#[derive(PartialEq)]
 pub enum ColorMode {
 	Luma,
 	Rgb,
@@ -16,7 +17,40 @@ const BLOCK_LIGHT: char = '\u{2591}';
 const BLOCK_MEDIUM: char = '\u{2592}';
 const BLOCK_DARK: char = '\u{2593}';
 const BLOCK_FULL: char = '\u{2588}';
+const BLOCK_UPPER_HALF: char = '\u{2580}';
+const BLOCK_LOWER_HALF: char = '\u{2584}';
 const EMPTY: char = ' ';
+
+struct Pixel {
+	a: f32,
+	r: f32,
+	g: f32,
+	b: f32,
+}
+
+impl Pixel {
+
+	fn new(img: &RgbaImage, bg_rgb: &Vec<f32>, x: u32, y: u32) -> Pixel{
+		let p = img.get_pixel(x, y);
+
+		// composite onto background
+		let a = p[3] as f32 / 255.0;
+
+		// TODO: Maybe have burn modes?
+		let r = p[0] as f32 * a / 255.0 + bg_rgb[0] * (1f32 - a);
+		let g = p[1] as f32 * a / 255.0 + bg_rgb[1] * (1f32 - a);
+		let b = p[2] as f32 * a / 255.0 + bg_rgb[2] * (1f32 - a);
+		Pixel {a,r,b,g}
+	}
+
+	fn color(self) -> Color {
+		Color::Rgb(
+			(255.0 * self.r) as u8,
+			(255.0 * self.g) as u8,
+			(255.0 * self.b) as u8,
+		)
+	}
+}
 
 /// A tui-rs Widget which displays an image.
 pub struct Image<'a> {
@@ -112,28 +146,23 @@ impl<'a> Image<'a> {
 		let oy = max(
 			0,
 			min(
-				area.height - 1,
-				(area.height - (img.height() / 2) as u16) / 2,
+				2 * area.height - 1,
+				(2 * area.height - img.height() as u16) / 2,
 			),
 		) as u16;
 
 		// draw
+		let get_pixel = |x, y| Pixel::new(img, &bg_rgb, (x - ox) as u32, (y - oy) as u32);
 
-		for y in oy..(oy + min((img.height() / 2) as u16, area.height - 1)) {
+		for y in oy..(oy + min(img.height() as u16, 2 * area.height - 1) - 1) {
 			for x in ox..min(ox + img.width() as u16, area.width - 1) {
-				let p = img.get_pixel((x - ox) as u32, 2 * (y - oy) as u32);
+				let p = get_pixel(x, y);
 
-				// composite onto background
-				let a = p[3] as f32 / 255.0;
-				let r = p[0] as f32 * a / 255.0 + bg_rgb[0] * (1f32 - a);
-				let g = p[1] as f32 * a / 255.0 + bg_rgb[1] * (1f32 - a);
-				let b = p[2] as f32 * a / 255.0 + bg_rgb[2] * (1f32 - a);
-
-				let cell = buf.get_mut(area.left() + x, area.top() + y);
+				let cell = buf.get_mut(area.left() + x, area.top() + y / 2);
 
 				match self.color_mode {
 					ColorMode::Luma => {
-						let luma = r * 0.3 + g * 0.59 + b * 0.11;
+						let luma = p.r * 0.3 + p.g * 0.59 + p.b * 0.11;
 						let luma_u8 = (5.0 * luma) as u8;
 						if luma_u8 == 0 {
 							continue;
@@ -146,22 +175,23 @@ impl<'a> Image<'a> {
 							_ => BLOCK_FULL,
 						});
 					}
-					ColorMode::Rgb => {
-						cell.set_char(BLOCK_FULL).set_fg(Color::Rgb(
-							(255.0 * r) as u8,
-							(255.0 * g) as u8,
-							(255.0 * b) as u8,
-						));
-					}
-					ColorMode::Rgba => {
-						if a == 0. {
-							cell.set_char(EMPTY);
-						} else {
-							cell.set_char(BLOCK_FULL).set_fg(Color::Rgb(
-								(255.0 * r) as u8,
-								(255.0 * g) as u8,
-								(255.0 * b) as u8,
-							));
+					ColorMode::Rgb | ColorMode::Rgba => {
+						if y % 2 == 0 {
+							let p1 = p;
+							let p2 = get_pixel(x, y + 1);
+							let no_alpha = self.color_mode == ColorMode::Rgb;
+							if p1.a > 0. || no_alpha {
+								cell.set_char(BLOCK_UPPER_HALF).set_fg(
+									p1.color()
+								);
+								if p2.a > 0. || no_alpha {
+									cell.set_bg(p2.color());
+								}
+							} else if p2.a > 0. {
+								cell.set_char(BLOCK_LOWER_HALF).set_fg(p2.color());
+							} else {
+								cell.set_char(EMPTY);
+							}
 						}
 					}
 				}
@@ -188,7 +218,7 @@ impl<'a> Widget for Image<'a> {
 		buf.set_style(area, self.style);
 
 		if let Some(ref img) = self.img {
-			if img.width() > area.width as u32 || img.height() / 2 > area.height as u32 {
+			if img.width() > area.width as u32 || img.height() > 2 * area.height as u32 {
 				let scaled = resize(
 					img,
 					area.width as u32,
