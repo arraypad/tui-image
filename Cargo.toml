@@ -10,10 +10,10 @@ license = "MIT"
 keywords = ["terminal", "image", "tui", "widget"]
 
 [dependencies]
-tui = "0.18"
+tui = "0.19"
 failure = "0.1"
 image = "0.24"
 
 [dev-dependencies]
-tui = { version = "0.18", default-features = false, features = ['termion'] }
+tui = { version = "0.19", default-features = false, features = ['termion'] }
 termion = "1.5"
